@@ -79,7 +79,8 @@ def target_exists(href: str) -> bool:
     path = path.lstrip("/")
     if path == "":
         return True
-    return (ROOT / path).exists()
+    # Cloudflare sirve /pagina sin .html
+    return (ROOT / path).exists() or (ROOT / (path + ".html")).exists()
 
 
 def main() -> int:
@@ -95,6 +96,8 @@ def main() -> int:
         for h in pg.links:
             u = urlparse(h)
             clean = u.path.lstrip("/")
+            if clean and "." not in clean.rsplit("/",1)[-1]: clean += ".html"
+            if clean == "": clean = "index.html"
             referenced.add(clean)
             if not target_exists(h):
                 issues["Enlace/recurso interno roto"].append(f"{p.name} -> {h}")
@@ -136,9 +139,13 @@ def main() -> int:
     # sitemap
     sm = (ROOT / "sitemap.xml").read_text(encoding="utf-8")
     locs = re.findall(r"<loc>([^<]+)</loc>", sm)
-    in_sm = {urlparse(l).path.lstrip("/") for l in locs}
+    def sm_file(l):
+        q = urlparse(l).path.lstrip("/")
+        if q == "": return "index.html"
+        return q if "." in q else q + ".html"
+    in_sm = {sm_file(l) for l in locs}
     for l in locs:
-        if not (ROOT / urlparse(l).path.lstrip("/")).exists():
+        if not (ROOT / sm_file(l)).exists():
             issues["URL del sitemap inexistente"].append(l)
     for p in pages:
         if p.name not in NOINDEX and p.name not in in_sm:

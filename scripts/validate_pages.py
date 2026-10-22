@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Valida que cada página HTML del sitio corresponde a sí misma:
-- El <link rel="canonical"> apunta al propio nombre de archivo.
+- El <link rel="canonical"> apunta a la URL sin .html (index -> raíz), la que sirve Cloudflare.
 - El <title> y el <h1> (si existen) son consistentes entre sí dentro
   de la misma página.
 - robots.txt y sitemap.xml no son en realidad páginas HTML coladas
@@ -18,7 +18,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-CANONICAL_RE = re.compile(r'rel="canonical"\s+href="https://[^/]+/([^"]+)"')
+CANONICAL_RE = re.compile(r'rel="canonical"\s+href="https://[^/]+/([^"]*)"')
 TITLE_RE = re.compile(r"<title>([^<]*)</title>")
 H1_RE = re.compile(r"<h1[^>]*>([^<]+)")
 
@@ -51,10 +51,13 @@ def check_html_file(path: Path) -> list[str]:
         m = CANONICAL_RE.search(text)
         if not m:
             problems.append(f"{path.name}: no tiene <link rel=\"canonical\">")
-        elif m.group(1) != path.name:
-            problems.append(
-                f"{path.name}: canonical apunta a '{m.group(1)}' en vez de a sí mismo"
-            )
+        else:
+            # Cloudflare sirve /pagina sin .html (y redirige .html); index -> raíz
+            expected = "" if path.name == "index.html" else path.stem
+            if m.group(1) != expected:
+                problems.append(
+                    f"{path.name}: canonical apunta a '{m.group(1)}' en vez de a '{expected}'"
+                )
 
     # 3) title y h1 no deben estar vacíos ni contradecirse entre sí
     #    de forma evidente (comprobación best-effort, no exhaustiva).

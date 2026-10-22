@@ -10,6 +10,7 @@ def d(path):
     return r
 def fix(m):
     loc = m.group(1); path = urlparse(loc).path.lstrip("/") or "index.html"
+    if not path.endswith(".html"): path += ".html"
     date = d(path)
     return f"<url><loc>{loc}</loc><lastmod>{date}</lastmod></url>" if date else m.group(0)
 t2 = re.sub(r"<url><loc>([^<]+)</loc>(?:<lastmod>[^<]*</lastmod>)?</url>", fix, t)
